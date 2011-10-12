@@ -1,10 +1,9 @@
 require 'rack'
-require 'httparty'
 require 'sinatra/base'
 require 'json'
+require 'httpclient'
 
-class CapturedProxy
-  include HTTParty
+class ProxyServer
 
   attr_reader :upstream_proxy, :port
   attr_reader :tracking
@@ -15,49 +14,41 @@ class CapturedProxy
     if upstream_proxy_options = options[:proxy]
       @upstream_proxy = "#{upstream_proxy_options[:uri]}:#{upstream_proxy_options[:port]}"
     end
+    @client = HTTPClient.new :proxy => @upstream_proxy
 
     @port = options.fetch(:port, DEFAULT_PORT)
     @tracking = {
         :patterns => [],
         :requests => []
     }
-    $tracking = @tracking # this is hacky but lets the sinatra app talk to this one
-
-    @control_app = Sinatra.new do
-      post '/proxy_control/track' do
-        $tracking[:patterns] << params[:uri_pattern]
-      end
-
-      get '/proxy_control/requests' do
-        content_type :json
-        $tracking[:requests].to_json
-      end
-    end
   end
+  #
+  #def self.run!(proxy)
+  #  handler = Rack::Handler::WEBrick
+  #
+  #  begin
+  #    require 'thin'
+  #    handler = Rack::Handler::Thin
+  #  rescue LoadError
+  #  end
+  #
+  #  handler.run proxy, :Port => proxy.port
+  #end
 
-  def self.run!(proxy)
-    handler = Rack::Handler::WEBrick
+  def run
+    Thread.new do
+      @handler = Rack::Handler::WEBrick
 
-    begin
-      require 'thin'
-      handler = Rack::Handler::Thin
-    rescue LoadError
+      @handler.run self, :Port => self.port
     end
-
-    handler.run proxy, :Port => proxy.port
-  end
-
-  def is_control_request?(path)
-    path =~ /^\/proxy_control/
   end
 
   def call env
+
     path   = env['PATH_INFO']
     url    = env['REQUEST_URI']
     method = env['REQUEST_METHOD'].downcase
-    if is_control_request? path
-      @control_app.call env
-    else
+
       log_request env
 
       #CapturedProxy.http_proxy('www-cache-bbcny.reith.bbc.co.uk',80)
@@ -66,18 +57,15 @@ class CapturedProxy
       #
       #[ response.code, _get_response_headers(response), [response_body] ]
       [200, {}, ['']]
-    end
+
   end
 
   def log_request(env)
+    p "I am logging"
     url = env['REQUEST_URI'] || "http://#{env['SERVER_NAME']}#{env['PATH_INFO']}#{env['QUERY_STRING'] ? '?'+env['QUERY_STRING'] : ''}"
     @tracking[:patterns].each do |pattern|
-      p pattern
       @tracking[:requests] << url if Regexp.new(pattern) =~ url
     end
-   # if url =~ /#{'http://bbc.112.2o7.net'}/
-   #   Analytics::AnalyticsLogger.raw_requests << url
-   #end
   end
 
   # env['rack.input'] returns an IO object that you must #each over to get the full body

@@ -3,32 +3,32 @@ require_relative '../../lib/proxy-server'
 require 'rack/test'
 ENV['RACK_ENV'] = 'test'
 
-describe CapturedProxy do
+describe ProxyServer do
   include Rack::Test::Methods
 
   it "can be configured with an upstream proxy" do
     proxy_uri = 'test-proxy'
     proxy_port = 90
-    proxy = CapturedProxy.new :proxy => {:uri => proxy_uri, :port => proxy_port}
+    proxy = ProxyServer.new :proxy => {:uri => proxy_uri, :port => proxy_port}
     proxy.upstream_proxy.should == "#{proxy_uri}:#{proxy_port}"
   end
 
   it "can be configured to run on a specific port" do
     proxy_port = 8080
-    proxy = CapturedProxy.new :port => proxy_port
+    proxy = ProxyServer.new :port => proxy_port
     proxy.port.should == proxy_port
   end
 
   it "default the port when none is specified" do
-    proxy = CapturedProxy.new
-    proxy.port.should == CapturedProxy::DEFAULT_PORT
+    proxy = ProxyServer.new
+    proxy.port.should == ProxyServer::DEFAULT_PORT
   end
 
   context "control mechanism" do
-    let(:app) {CapturedProxy.new}
+    let(:app) {ProxyServer.new}
 
     it "can tell when a control url is requested" do
-      proxy = CapturedProxy.new
+      proxy = ProxyServer.new
       proxy.is_control_request?("/proxy_control").should be_true
       proxy.is_control_request?("google.com").should be_false
     end

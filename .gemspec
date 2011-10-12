@@ -13,11 +13,12 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'json', '>= 1.4.6'
   s.add_dependency 'sinatra', '>= 1.2.6'
+  s.add_dependency 'httpclient'
 
   s.add_development_dependency 'rake', '>= 0.9.2'
   s.add_development_dependency 'rspec', '>= 2.6.0'
   s.add_development_dependency 'simplecov', '>= 0.4.2'
-  s.add_development_dependency 'httparty'
+  s.add_development_dependency 'webmock'
 
 
   s.add_development_dependency 'rack-test', '>= 0.5.7'
