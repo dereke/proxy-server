@@ -1,13 +1,15 @@
 require_relative '../spec_helper'
 require_relative '../../lib/proxy-server'
 require 'rack/test'
-ENV['RACK_ENV'] = 'test'
+require 'webmock/rspec'
 
 describe ProxyServer do
   include Rack::Test::Methods
 
+  let(:app) { ProxyServer.new }
+
   it "can be configured with an upstream proxy" do
-    proxy_uri = 'test-proxy'
+    proxy_uri = 'http://test-proxy'
     proxy_port = 90
     proxy = ProxyServer.new :proxy => {:uri => proxy_uri, :port => proxy_port}
     proxy.upstream_proxy.should == "#{proxy_uri}:#{proxy_port}"
@@ -24,43 +26,19 @@ describe ProxyServer do
     proxy.port.should == ProxyServer::DEFAULT_PORT
   end
 
-  context "control mechanism" do
-    let(:app) {ProxyServer.new}
+  it "should allow requests" do
+    stub_request(:get, "http://www.example.com")
 
-    it "can tell when a control url is requested" do
-      proxy = ProxyServer.new
-      proxy.is_control_request?("/proxy_control").should be_true
-      proxy.is_control_request?("google.com").should be_false
-    end
+    response = get 'http://www.example.com'
+    response.status.should == 200
+    # this is probably going to need some mocking out of the request in ProxyServer once it starts working..
+  end
 
-    it "ads a given url to a list of them to track" do
-      track_url = 'public/.*.js'
-      post '/proxy_control/track', {:uri_pattern => track_url}
+  it "should allow requests with query strings" do
+    stub_request(:get, "http://www.example.com?para=value")
 
-      app.tracking[:patterns].should include(track_url)
-    end
+    response = get "http://www.example.com?para=value"
+    response.status.should == 200
 
-    it "tracks a url that has been configured to be tracked" do
-      track_url = 'www.google.com/public/.*.js'
-      post '/proxy_control/track', {:uri_pattern => track_url}
-
-      tracked_url = 'http://www.google.com/public/something.js?query=something'
-      get tracked_url
-
-      app.tracking[:requests].should include(tracked_url)
-    end
-
-    it "returns the requests that were tracked" do
-      track_url = 'www.google.com/public/.*.js'
-      post '/proxy_control/track', {:uri_pattern => track_url}
-
-      tracked_url = 'http://www.google.com/public/something.js?query=something'
-      get tracked_url
-
-      requests_response = get '/proxy_control/requests'
-
-      requests = JSON.parse(requests_response.body)
-      requests.should include(tracked_url)
-    end
   end
 end

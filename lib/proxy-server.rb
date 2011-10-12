@@ -1,6 +1,4 @@
 require 'rack'
-require 'sinatra/base'
-require 'json'
 require 'httpclient'
 
 class ProxyServer
@@ -14,7 +12,7 @@ class ProxyServer
     if upstream_proxy_options = options[:proxy]
       @upstream_proxy = "#{upstream_proxy_options[:uri]}:#{upstream_proxy_options[:port]}"
     end
-    @client = HTTPClient.new :proxy => @upstream_proxy
+    @client = create_http_client
 
     @port = options.fetch(:port, DEFAULT_PORT)
     @tracking = {
@@ -22,18 +20,10 @@ class ProxyServer
         :requests => []
     }
   end
-  #
-  #def self.run!(proxy)
-  #  handler = Rack::Handler::WEBrick
-  #
-  #  begin
-  #    require 'thin'
-  #    handler = Rack::Handler::Thin
-  #  rescue LoadError
-  #  end
-  #
-  #  handler.run proxy, :Port => proxy.port
-  #end
+
+  def create_http_client
+    HTTPClient.new :proxy => @upstream_proxy
+  end
 
   def run
     Thread.new do
@@ -43,50 +33,46 @@ class ProxyServer
     end
   end
 
-  def call env
+  def call(env)
 
-    path   = env['PATH_INFO']
-    url    = env['REQUEST_URI']
-    method = env['REQUEST_METHOD'].downcase
+    method  = env['REQUEST_METHOD']
+    uri     = "http://#{env['HTTP_HOST']}#{env['PATH_INFO']}"
+    params  = get_params(env['QUERY_STRING'])
+    body    = get_request_body(env)
+    headers = get_request_headers(env)
 
-      log_request env
+    response = @client.request(method, uri, params, body, headers)
 
-      #CapturedProxy.http_proxy('www-cache-bbcny.reith.bbc.co.uk',80)
-      #response = CapturedProxy.send method, url, :body => _get_request_body(env), :headers => _get_request_headers(env), :format => 'text'
-      #response_body = response.body
-      #
-      #[ response.code, _get_response_headers(response), [response_body] ]
-      [200, {}, ['']]
+    log_request env
 
+    [ response.status, response.headers, [response.body] ]
+  end
+
+  def get_params(query_string)
+    query_string.split('&').inject({}) do |hsh, i|
+      kv = i.split('='); hsh[kv[0]] = kv[1]; hsh
+    end unless query_string.nil? or query_string.length == 0
   end
 
   def log_request(env)
-    p "I am logging"
+
     url = env['REQUEST_URI'] || "http://#{env['SERVER_NAME']}#{env['PATH_INFO']}#{env['QUERY_STRING'] ? '?'+env['QUERY_STRING'] : ''}"
     @tracking[:patterns].each do |pattern|
       @tracking[:requests] << url if Regexp.new(pattern) =~ url
     end
   end
 
-  # env['rack.input'] returns an IO object that you must #each over to get the full body
-  def _get_request_body(env)
+  private
+  def get_request_body(env)
     body = ''
-    env['rack.input'].each {|string| body << string }
+    env['rack.input'].each_line {|string| body << string }
     body
   end
 
-  # response.headers returns an object that wraps the actual Hash of headers ... this gets the actual Hash
-  def _get_response_headers(response)
-    response_headers = response.headers.instance_variable_get('@header')
-    response_headers.each {|k, v| response_headers[k] = response_headers[k][0] } # values are all in arrays
-    response_headers
-  end
-
-  # we should pass along all HTTP_* headers and we need to CHANGE the HTTP_HOST header to reflect the new host we're making the request to
-  def _get_request_headers(env)
+  def get_request_headers(env)
     headers = {}
     env.each {|k,v| if k =~ /HTTP_(\w+)/ then headers[$1] = v end }
-    headers.delete 'HOST' # simply delete it and let HTTP do the rest
     headers
   end
 end
+

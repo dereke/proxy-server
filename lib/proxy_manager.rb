@@ -44,6 +44,7 @@ class ProxyManager < Sinatra::Base
   end
 
   def start_proxy(port)
+    p "calling actual start!"
     proxy_server = ProxyServer.new(:port => port)
     proxy_server.run
     running_proxy_servers[port] = proxy_server
