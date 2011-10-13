@@ -36,12 +36,12 @@ class ProxyManager < Sinatra::Base
 
   post '/proxies/:port/requests' do |port|
     proxy_server = get_proxy(port.to_i)
-    proxy_server.tracking[:patterns] << params[:track]
+    proxy_server.track_request(params[:track])
   end
 
   get '/proxies/:port/requests' do |port|
     proxy_server = get_proxy(port.to_i)
-    proxy_server.tracking[:requests].to_json
+    proxy_server.requests.to_json
   end
 
   def get_proxy(port)

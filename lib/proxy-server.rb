@@ -4,7 +4,7 @@ require 'httpclient'
 class ProxyServer
 
   attr_reader :upstream_proxy, :port
-  attr_reader :tracking
+  attr_reader :requests
 
   DEFAULT_PORT = 8080
 
@@ -17,10 +17,8 @@ class ProxyServer
     @port = options.fetch(:port, DEFAULT_PORT)
 
     @substitute_requests = {}
-    @tracking = {
-        :patterns => [],
-        :requests => []
-    }
+    @requests = []
+    @track_requests = []
   end
 
   def create_http_client
@@ -75,6 +73,10 @@ class ProxyServer
     @substitute_requests[pattern] = options
   end
 
+  def track_request(pattern)
+    @track_requests << pattern
+  end
+
   def get_params(query_string)
     query_string.split('&').inject({}) do |hsh, i|
       kv = i.split('='); hsh[kv[0]] = kv[1]; hsh
@@ -83,9 +85,9 @@ class ProxyServer
 
   def log_request(env)
 
-    url = env['REQUEST_URI'] || "http://#{env['SERVER_NAME']}#{env['PATH_INFO']}#{env['QUERY_STRING'] ? '?'+env['QUERY_STRING'] : ''}"
-    @tracking[:patterns].each do |pattern|
-      @tracking[:requests] << url if Regexp.new(pattern) =~ url
+    url = env['REQUEST_URI'] || "http://#{env['SERVER_NAME']}#{env['PATH_INFO']}#{env['QUERY_STRING'].length>0 ? '?'+env['QUERY_STRING'] : ''}"
+    @track_requests.each do |pattern|
+      @requests << url if Regexp.new(pattern) =~ url
     end
   end
 

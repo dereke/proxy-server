@@ -7,7 +7,9 @@ describe ProxyManager do
   include Rack::Test::Methods
 
   before do
-    ProxyManager.any_instance.stub(:start_proxy).with(anything()).and_return{Object.new}
+    @proxy_server = Object.new
+    ProxyManager.any_instance.stub(:start_proxy).with(anything()).and_return(@proxy_server)
+    ProxyManager.any_instance.stub(:get_proxy).with(anything()).and_return(@proxy_server)
   end
 
   let(:app) { ProxyManager.new }
@@ -43,48 +45,18 @@ describe ProxyManager do
     JSON.parse(second_response.body)['port'].should == second_expected_proxy
   end
 
-  context "once a proxy has been created" do
-    before do
-      response = post '/proxies'
-      @proxy_port = JSON.parse(response.body)['port']
-      @proxy_server = ProxyServer.new(:port => @proxy_port)
-      ProxyManager.any_instance.stub(:get_proxy).with(@proxy_port).and_return{@proxy_server}
-    end
+  it "ads a given url to a list of them to track" do
+    track_url = 'public/.*.js'
 
-    it "ads a given url to a list of them to track" do
-      track_url = 'public/.*.js'
-      post "/proxies/#{@proxy_port}/requests", {:track => track_url}
+    @proxy_server.should_receive(:track_request).with(track_url)
+    post "/proxies/1111/requests", {:track => track_url}
+  end
 
-      @proxy_server.tracking[:patterns].should include(track_url)
-    end
-
-    it "tracks a url that has been configured to be tracked" do
-      track_url = 'public/.*.js'
-      post "/proxies/#{@proxy_port}/requests", {:track => track_url}
-
-      stub_request(:get, "http://www.google.com/public/something.js?query=something")
-      tracked_url = 'http://www.google.com/public/something.js?query=something'
-
-      browser = Rack::Test::Session.new(Rack::MockSession.new(@proxy_server))
-      browser.get tracked_url
-
-      @proxy_server.tracking[:requests].should include(tracked_url)
-    end
-
-    it "returns the requests that were tracked" do
-      track_url = 'www.google.com/public/.*.js'
-      post "/proxies/#{@proxy_port}/requests", {:track => track_url}
-
-      stub_request(:get, "http://www.google.com/public/something.js?query=something")
-      tracked_url = 'http://www.google.com/public/something.js?query=something'
-
-      browser = Rack::Test::Session.new(Rack::MockSession.new(@proxy_server))
-      browser.get tracked_url
-
-      requests_response = get "/proxies/#{@proxy_port}/requests"
-
-      requests = JSON.parse(requests_response.body)
-      requests.should include(tracked_url)
-    end
+  it "ads a given url to a list of them to track" do
+    @proxy_server.stub!(:requests).and_return(['request 1', 'request 2'])
+    response = get "/proxies/1111/requests"
+    requests = JSON.parse(response.body)
+    requests.should include('request 1')
+    requests.should include('request 2')
   end
 end

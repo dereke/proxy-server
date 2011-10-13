@@ -61,4 +61,19 @@ describe ProxyServer do
     response = browser.get 'http://www.google.com'
     response.body.should == expected_response_body
   end
+
+  it "tracks a url that matches the pattern" do
+    proxy = ProxyServer.new
+    expected_response = "this is not what you are looking for"
+    proxy.track_request '.*com'
+
+    stub_request(:get, 'http://www.google.com/')
+    stub_request(:get, 'http://www.google.co.uk/')
+
+    browser = Rack::Test::Session.new(Rack::MockSession.new(proxy))
+    browser.get 'http://www.google.com/'
+    browser.get 'http://www.google.co.uk/'
+
+    proxy.requests.should include('http://www.google.com/')
+  end
 end
