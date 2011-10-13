@@ -1,6 +1,7 @@
 require_relative '../spec_helper'
 require_relative '../../lib/proxy_manager'
 require 'rack/test'
+require 'webmock/rspec'
 
 describe ProxyManager do
   include Rack::Test::Methods
@@ -61,6 +62,7 @@ describe ProxyManager do
       track_url = 'public/.*.js'
       post "/proxies/#{@proxy_port}/requests", {:track => track_url}
 
+      stub_request(:get, "http://www.google.com/public/something.js?query=something")
       tracked_url = 'http://www.google.com/public/something.js?query=something'
 
       browser = Rack::Test::Session.new(Rack::MockSession.new(@proxy_server))
@@ -74,6 +76,7 @@ describe ProxyManager do
       track_url = 'www.google.com/public/.*.js'
       post "/proxies/#{@proxy_port}/requests", {:track => track_url}
 
+      stub_request(:get, "http://www.google.com/public/something.js?query=something")
       tracked_url = 'http://www.google.com/public/something.js?query=something'
 
       browser = Rack::Test::Session.new(Rack::MockSession.new(@proxy_server))
