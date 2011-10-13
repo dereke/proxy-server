@@ -53,7 +53,6 @@ class ProxyServer
     uri = env['REQUEST_URI'] || "http://#{env['SERVER_NAME']}#{env['PATH_INFO']}#{env['QUERY_STRING'] ? '?'+env['QUERY_STRING'] : ''}"
     @substitute_requests.each do |pattern, options|
       if Regexp.new(pattern) =~ uri
-        p "matched sub"
         return get_substituted_response(options)
       end
     end

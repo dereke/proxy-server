@@ -59,4 +59,14 @@ describe ProxyManager do
     requests.should include('request 1')
     requests.should include('request 2')
   end
+
+  it "can substitute a request with another body" do
+    @proxy_server.should_receive(:substitute_request).with('*.js', :body => 'alert(1);')
+    post "/proxies/1111/requests/substitute", {:pattern => '*.js', :body => 'alert(1);'}
+  end
+
+  it "can substitute a request with another url" do
+    @proxy_server.should_receive(:substitute_request).with('*.js', :url => 'http://example.com/test.js')
+    post "/proxies/1111/requests/substitute", {:pattern => '*.js', :url => 'http://example.com/test.js'}
+  end
 end
