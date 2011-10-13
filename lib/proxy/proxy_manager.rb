@@ -25,7 +25,12 @@ class ProxyManager < Sinatra::Base
 
     assigned_proxy_ports << new_proxy_port
 
-    start_proxy(new_proxy_port)
+    options = {
+        :port => new_proxy_port
+    }
+
+    options[:proxy] = params[:proxy] if params[:proxy]
+    start_proxy(options)
 
     {:port => new_proxy_port}.to_json
   end
@@ -56,10 +61,10 @@ class ProxyManager < Sinatra::Base
     running_proxy_servers[port]
   end
 
-  def start_proxy(port)
-    proxy_server = ProxyServer.new(:port => port)
+  def start_proxy(options)
+    proxy_server = ProxyServer.new(options)
     proxy_server.run
-    running_proxy_servers[port] = proxy_server
+    running_proxy_servers[options[:port]] = proxy_server
   end
 end
 

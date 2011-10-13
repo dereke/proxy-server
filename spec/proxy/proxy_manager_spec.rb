@@ -20,6 +20,11 @@ describe ProxyManager do
     proxy.should == {'port' => ProxyManager::START_PORT}
   end
 
+  it "should create a new proxy with an upstream proxy when asked to" do
+    ProxyManager.any_instance.should_receive(:start_proxy).with(hash_including(:proxy => 'http://my_proxy:80'))
+    response = post '/proxies', {:proxy => 'http://my_proxy:80'}
+  end
+
   it "should tell me about all the proxies that have been created" do
     post '/proxies'
     response = get '/proxies'

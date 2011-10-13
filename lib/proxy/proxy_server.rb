@@ -9,9 +9,7 @@ class ProxyServer
   DEFAULT_PORT = 8080
 
   def initialize(options = {})
-    if upstream_proxy_options = options[:proxy]
-      @upstream_proxy = "#{upstream_proxy_options[:uri]}:#{upstream_proxy_options[:port]}"
-    end
+    @upstream_proxy = options[:proxy]
     @client = create_http_client
 
     @port = options.fetch(:port, DEFAULT_PORT)
