@@ -1,3 +1,8 @@
+require 'rubygems'
+require 'bundler'
+require 'rspec/core/rake_task'
+Bundler::GemHelper.install_tasks
+
 task :coverage do
   require 'simplecov'
   require 'rspec/core'
@@ -8,3 +13,7 @@ task :coverage do
   SimpleCov.start
   RSpec::Core::Runner.run %w[spec]
 end
+
+
+require 'rake/clean'
+CLEAN.include %w(**/*.{log,pyc,rbc,tgz} doc)
