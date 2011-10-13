@@ -1,5 +1,5 @@
 require_relative '../spec_helper'
-require_relative '../../lib/proxy_manager'
+require_relative '../../lib/proxy/proxy_manager'
 require 'rack/test'
 require 'webmock/rspec'
 

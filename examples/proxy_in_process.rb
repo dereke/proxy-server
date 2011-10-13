@@ -1,5 +1,5 @@
-require_relative '../lib/proxy_manager'
-require 'rest_client'
+require_relative '../lib/proxy-server'
+require 'rest_client' # you will need to install this via gem install rest-client / bundler etc
 require 'json'
 
 

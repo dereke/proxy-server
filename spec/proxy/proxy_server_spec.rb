@@ -1,10 +1,13 @@
 require_relative '../spec_helper'
-require_relative '../../lib/proxy-server'
+require_relative '../../lib/proxy/proxy_server'
 require 'rack/test'
 require 'webmock/rspec'
 
 describe ProxyServer do
   include Rack::Test::Methods
+  before do
+    ENV.clear
+  end
 
   let(:app) { ProxyServer.new }
 

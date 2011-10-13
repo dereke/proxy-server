@@ -1,5 +1,5 @@
+require_relative './proxy_server'
 require 'sinatra/base'
-require_relative './proxy-server'
 require 'json'
 
 class ProxyManager < Sinatra::Base
