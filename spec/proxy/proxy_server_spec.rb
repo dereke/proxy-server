@@ -12,10 +12,9 @@ describe ProxyServer do
   let(:app) { ProxyServer.new }
 
   it "can be configured with an upstream proxy" do
-    proxy_uri = 'http://test-proxy'
-    proxy_port = 90
-    proxy = ProxyServer.new :proxy => {:uri => proxy_uri, :port => proxy_port}
-    proxy.upstream_proxy.should == "#{proxy_uri}:#{proxy_port}"
+    proxy_uri = 'http://test-proxy:80'
+    proxy = ProxyServer.new :proxy => proxy_uri
+    proxy.upstream_proxy.should == proxy_uri
   end
 
   it "can be configured to run on a specific port" do
