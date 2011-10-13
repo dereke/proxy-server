@@ -39,6 +39,5 @@ describe ProxyServer do
 
     response = get "http://www.example.com?para=value"
     response.status.should == 200
-
   end
 end

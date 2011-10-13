@@ -1,5 +1,5 @@
 require 'sinatra/base'
-require 'proxy-server'
+require_relative './proxy-server'
 require 'json'
 
 class ProxyManager < Sinatra::Base
@@ -34,9 +34,14 @@ class ProxyManager < Sinatra::Base
     assigned_proxy_ports.clear
   end
 
-  post '/proxies/:port/track' do |port|
+  post '/proxies/:port/requests' do |port|
     proxy_server = get_proxy(port.to_i)
-    proxy_server.tracking[:patterns] << params[:pattern]
+    proxy_server.tracking[:patterns] << params[:track]
+  end
+
+  get '/proxies/:port/requests' do |port|
+    proxy_server = get_proxy(port.to_i)
+    proxy_server.tracking[:requests].to_json
   end
 
   def get_proxy(port)
@@ -44,7 +49,6 @@ class ProxyManager < Sinatra::Base
   end
 
   def start_proxy(port)
-    p "calling actual start!"
     proxy_server = ProxyServer.new(:port => port)
     proxy_server.run
     running_proxy_servers[port] = proxy_server
