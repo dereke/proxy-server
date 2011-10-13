@@ -31,7 +31,6 @@ describe ProxyServer do
 
     response = get 'http://www.example.com'
     response.status.should == 200
-    # this is probably going to need some mocking out of the request in ProxyServer once it starts working..
   end
 
   it "should allow requests with query strings" do
@@ -39,5 +38,27 @@ describe ProxyServer do
 
     response = get "http://www.example.com?para=value"
     response.status.should == 200
+  end
+
+  it "can substitute the response of a request with a body of text" do
+    proxy = ProxyServer.new
+    expected_response = "this is not what you are looking for"
+    proxy.substitute_request '.*com', :body => expected_response
+
+    browser = Rack::Test::Session.new(Rack::MockSession.new(proxy))
+    response = browser.get 'http://www.google.com'
+    response.body.should == expected_response
+  end
+
+  it "can substitute the response of a request with another url to call" do
+    proxy = ProxyServer.new
+    substitute_url = "http://example.com"
+    expected_response_body = "substitute body"
+    stub_request(:get, substitute_url).to_return(:body => expected_response_body)
+    proxy.substitute_request '.*com', :url => substitute_url
+
+    browser = Rack::Test::Session.new(Rack::MockSession.new(proxy))
+    response = browser.get 'http://www.google.com'
+    response.body.should == expected_response_body
   end
 end

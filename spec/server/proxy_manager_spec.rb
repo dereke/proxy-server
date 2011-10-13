@@ -68,7 +68,6 @@ describe ProxyManager do
       browser = Rack::Test::Session.new(Rack::MockSession.new(@proxy_server))
       browser.get tracked_url
 
-
       @proxy_server.tracking[:requests].should include(tracked_url)
     end
 

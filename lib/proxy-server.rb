@@ -15,6 +15,8 @@ class ProxyServer
     @client = create_http_client
 
     @port = options.fetch(:port, DEFAULT_PORT)
+
+    @substitute_requests = {}
     @tracking = {
         :patterns => [],
         :requests => []
@@ -34,18 +36,43 @@ class ProxyServer
   end
 
   def call(env)
+    log_request env
+
+    response = get_substitution(env)
+    return response unless response.nil?
 
     method  = env['REQUEST_METHOD']
     uri     = "http://#{env['HTTP_HOST']}#{env['PATH_INFO']}"
     params  = get_params(env['QUERY_STRING'])
     body    = get_request_body(env)
     headers = get_request_headers(env)
-
     response = @client.request(method, uri, params, body, headers)
 
-    log_request env
-
     [ response.status, response.headers, [response.body] ]
+  end
+
+  def get_substitution(env)
+    uri = env['REQUEST_URI'] || "http://#{env['SERVER_NAME']}#{env['PATH_INFO']}#{env['QUERY_STRING'] ? '?'+env['QUERY_STRING'] : ''}"
+    @substitute_requests.each do |pattern, options|
+      if Regexp.new(pattern) =~ uri
+        p "matched sub"
+        return get_substituted_response(options)
+      end
+    end
+    nil
+  end
+
+  def get_substituted_response(options)
+    if options[:body]
+      [ 200, {}, [options[:body]] ]
+    elsif options[:url]
+      response = @client.get(options[:url])
+      [ response.status, response.headers, [response.body] ]
+    end
+  end
+
+  def substitute_request(pattern, options)
+    @substitute_requests[pattern] = options
   end
 
   def get_params(query_string)

@@ -22,3 +22,5 @@ client.get 'http://github.com'
 
 p JSON.parse(HTTPClient.get("http://localhost:4983/proxies/#{proxy['port']}/requests").body)
 
+
+
