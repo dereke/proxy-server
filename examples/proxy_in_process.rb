@@ -9,13 +9,10 @@ Thread.new do
   ProxyManager.run!
 end
 
-until_proxy_is_running = 2
+until_proxy_is_running = 3
 sleep until_proxy_is_running # need to implement the ability to wait for the proxy to be running
 
-puts "server running"
-
 proxy = JSON.parse(RestClient.post 'http://localhost:4983/proxies', {})
-sleep until_proxy_is_running
 
 RestClient.post "http://localhost:4983/proxies/#{proxy['port']}/requests", {:track => 'google.com'}
 

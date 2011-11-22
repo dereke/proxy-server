@@ -5,9 +5,6 @@ require 'webmock/rspec'
 
 describe ProxyServer do
   include Rack::Test::Methods
-  before do
-    ENV.clear
-  end
 
   let(:app) { ProxyServer.new }
 
@@ -78,4 +75,20 @@ describe ProxyServer do
 
     proxy.requests.should include('http://www.google.com/')
   end
+
+  it "reset causes request tracking to be removed" do
+    proxy = ProxyServer.new
+    proxy.requests << 'request 1' << 'request 2'
+    proxy.track_requests << 'request 1' << 'request 2'
+    proxy.reset
+    proxy.requests.length.should == 0
+    proxy.track_requests.length.should == 0
+  end
+
+  it "reset causes request substituting to be removed" do
+      proxy = ProxyServer.new
+      proxy.substitute_requests['test']  = 'item'
+      proxy.reset
+      proxy.substitute_requests.length.should == 0
+    end
 end

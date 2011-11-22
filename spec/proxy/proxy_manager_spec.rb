@@ -7,7 +7,7 @@ describe ProxyManager do
   include Rack::Test::Methods
 
   before do
-    @proxy_server = Object.new
+    @proxy_server = mock('ProxyServer')
     ProxyManager.any_instance.stub(:start_proxy).with(anything()).and_return(@proxy_server)
     ProxyManager.any_instance.stub(:get_proxy).with(anything()).and_return(@proxy_server)
   end
@@ -15,9 +15,10 @@ describe ProxyManager do
   let(:app) { ProxyManager.new }
 
   it "should create a new proxy when I ask for one" do
+    ProxyManager.any_instance.should_receive(:find_proxy_port).and_return(4000)
     response = post '/proxies'
     proxy = JSON.parse(response.body)
-    proxy.should == {'port' => ProxyManager::START_PORT}
+    proxy.should == {'port' => 4000}
   end
 
   it "should create a new proxy with an upstream proxy when asked to" do
@@ -26,9 +27,11 @@ describe ProxyManager do
   end
 
   it "should tell me about all the proxies that have been created" do
+    ProxyManager.any_instance.should_receive(:find_proxy_port).and_return(4000)
+
     post '/proxies'
     response = get '/proxies'
-    JSON.parse(response.body).should == [ProxyManager::START_PORT]
+    JSON.parse(response.body).should == [4000]
   end
 
   it "should remove all proxies when asked" do
@@ -39,9 +42,20 @@ describe ProxyManager do
     JSON.parse(response.body).should == []
   end
 
+  it "should remove a proxy when asked to" do
+    running_proxy_port = JSON.parse(post('/proxies').body)['port']
+    ProxyManager.any_instance.should_receive(:stop_proxy).with(running_proxy_port)
+
+    response = delete "/proxies/#{running_proxy_port}"
+
+    response.status.should == 200
+  end
+
   it "should assign new proxy ports when more than one is asked for" do
-    first_expected_proxy = ProxyManager::START_PORT
-    second_expected_proxy = ProxyManager::START_PORT + 1
+    first_expected_proxy = 100
+    second_expected_proxy = 101
+    available_proxy_ports = [first_expected_proxy, second_expected_proxy]
+    ProxyManager.any_instance.stub(:find_proxy_port).and_return { available_proxy_ports.shift }
 
     first_response = post '/proxies'
     second_response = post '/proxies'
@@ -73,5 +87,10 @@ describe ProxyManager do
   it "can substitute a request with another url" do
     @proxy_server.should_receive(:substitute_request).with('*.js', :url => 'http://example.com/test.js')
     post "/proxies/1111/requests/substitute", {:pattern => '*.js', :url => 'http://example.com/test.js'}
+  end
+
+  it "can reset the configuration of a proxy" do
+    @proxy_server.should_receive(:reset)
+    post "/proxies/1111/reset"
   end
 end

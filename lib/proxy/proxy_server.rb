@@ -4,7 +4,7 @@ require 'httpclient'
 class ProxyServer
 
   attr_reader :upstream_proxy, :port
-  attr_reader :requests
+  attr_reader :requests, :track_requests, :substitute_requests
 
   DEFAULT_PORT = 8080
 
@@ -24,9 +24,19 @@ class ProxyServer
   end
 
   def run
-    Thread.new do
-      Rack::Handler::WEBrick.run self, :Port => self.port
+    @proxy_thread = Thread.new do
+      Rack::Handler::WEBrick.run self, :Port => self.port, :AccessLog => []
     end
+  end
+
+  def stop
+    Thread.kill @proxy_thread if @proxy_thread
+  end
+
+  def reset
+    @requests.clear
+    @track_requests.clear
+    @substitute_requests.clear
   end
 
   def call(env)
@@ -40,6 +50,11 @@ class ProxyServer
     params  = get_params(env['QUERY_STRING'])
     body    = get_request_body(env)
     headers = get_request_headers(env)
+    #
+    #p "YES" if uri.include? 'unicast.com'
+    #p uri if uri.include? 'unicast.com'
+    #[ 200, {}, ['']] if uri.include? 'unicast.com'
+
     response = @client.request(method, uri, params, body, headers)
 
     [ response.status, response.headers, [response.body] ]
