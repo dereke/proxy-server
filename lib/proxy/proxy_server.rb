@@ -25,9 +25,7 @@ class ProxyServer
 
   def run
     Thread.new do
-      @handler = Rack::Handler::WEBrick
-
-      @handler.run self, :Port => self.port
+      Rack::Handler::WEBrick.run self, :Port => self.port
     end
   end
 

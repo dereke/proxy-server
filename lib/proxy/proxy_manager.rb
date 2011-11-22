@@ -1,4 +1,5 @@
 require_relative './proxy_server'
+require_relative './port_prober'
 require 'sinatra/base'
 require 'json'
 
@@ -19,10 +20,7 @@ class ProxyManager < Sinatra::Base
   end
 
   post '/proxies' do
-    new_proxy_port = assigned_proxy_ports.max
-    new_proxy_port += 1 unless new_proxy_port.nil?
-    new_proxy_port ||= START_PORT
-
+    new_proxy_port = find_proxy_port
     assigned_proxy_ports << new_proxy_port
 
     options = {
@@ -66,5 +64,8 @@ class ProxyManager < Sinatra::Base
     proxy_server.run
     running_proxy_servers[options[:port]] = proxy_server
   end
-end
 
+  def find_proxy_port
+    PortProber.above(assigned_proxy_ports.max || ProxyManager::START_PORT)
+  end
+end
