@@ -2,7 +2,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __FILE__)
 
 Gem::Specification.new do |s|
   s.name = 'proxy-server'
-  s.version = '0.0.3'
+  s.version = '0.0.4'
   s.authors = ["Derek Ekins"]
   s.description = 'Proxy server'
   s.summary = "proxy-server-#{s.version}"

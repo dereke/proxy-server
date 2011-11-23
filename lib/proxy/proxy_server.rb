@@ -1,8 +1,9 @@
-require 'rack'
 require 'httpclient'
+require "thin"
+require "rack/content_length"
+require "rack/chunked"
 
 class ProxyServer
-
   attr_reader :upstream_proxy, :port
   attr_reader :requests, :track_requests, :substitute_requests
 
@@ -25,7 +26,11 @@ class ProxyServer
 
   def run
     @proxy_thread = Thread.new do
-      Rack::Handler::WEBrick.run self, :Port => self.port, :AccessLog => []
+      server = ::Thin::Server.new('0.0.0.0',
+                                  self.port,
+                                  self)
+
+      server.start
     end
   end
 
@@ -45,25 +50,27 @@ class ProxyServer
     response = get_substitution(env)
     return response unless response.nil?
 
+
     method  = env['REQUEST_METHOD']
-    uri     = "http://#{env['HTTP_HOST']}#{env['PATH_INFO']}"
-    params  = get_params(env['QUERY_STRING'])
+    uri     = get_url(env)
     body    = get_request_body(env)
     headers = get_request_headers(env)
-    #
-    #p "YES" if uri.include? 'unicast.com'
-    #p uri if uri.include? 'unicast.com'
-    #[ 200, {}, ['']] if uri.include? 'unicast.com'
+
+    query_string_match = uri.match(/\?(.*)$/)
+    query_string = query_string_match ? query_string_match[1] : ""
+    params  = get_params(query_string)
 
     response = @client.request(method, uri, params, body, headers)
-
     [ response.status, response.headers, [response.body] ]
   end
 
+  def get_url(env)
+    env['REQUEST_URI'] || "http://#{env['SERVER_NAME']}#{env['PATH_INFO']}#{env['QUERY_STRING'].length > 0 ? '?'+env['QUERY_STRING'] : ''}"
+  end
+
   def get_substitution(env)
-    uri = env['REQUEST_URI'] || "http://#{env['SERVER_NAME']}#{env['PATH_INFO']}#{env['QUERY_STRING'] ? '?'+env['QUERY_STRING'] : ''}"
     @substitute_requests.each do |pattern, options|
-      if Regexp.new(pattern) =~ uri
+      if Regexp.new(pattern) =~ get_url(env)
         return get_substituted_response(options)
       end
     end
@@ -94,8 +101,7 @@ class ProxyServer
   end
 
   def log_request(env)
-
-    url = env['REQUEST_URI'] || "http://#{env['SERVER_NAME']}#{env['PATH_INFO']}#{env['QUERY_STRING'].length>0 ? '?'+env['QUERY_STRING'] : ''}"
+    url = get_url(env)
     @track_requests.each do |pattern|
       @requests << url if Regexp.new(pattern) =~ url
     end
@@ -114,4 +120,3 @@ class ProxyServer
     headers
   end
 end
-
