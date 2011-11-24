@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    proxy-server (0.0.4)
+    proxy-server (0.0.5)
       httpclient
       json (>= 1.4.6)
       sinatra (>= 1.2.6)

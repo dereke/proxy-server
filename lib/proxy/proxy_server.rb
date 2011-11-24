@@ -11,7 +11,6 @@ class ProxyServer
 
   def initialize(options = {})
     @upstream_proxy = options[:proxy]
-    @client = create_http_client
 
     @port = options.fetch(:port, DEFAULT_PORT)
 
@@ -20,7 +19,7 @@ class ProxyServer
     @track_requests = []
   end
 
-  def create_http_client
+  def http_client
     HTTPClient.new :proxy => @upstream_proxy
   end
 
@@ -60,7 +59,7 @@ class ProxyServer
     query_string = query_string_match ? query_string_match[1] : ""
     params  = get_params(query_string)
 
-    response = @client.request(method, uri, params, body, headers)
+    response = http_client.request(method, uri, params, body, headers)
     [ response.status, response.headers, [response.body] ]
   end
 
