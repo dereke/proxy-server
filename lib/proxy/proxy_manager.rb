@@ -76,12 +76,25 @@ class ProxyManager < Sinatra::Base
 
   def start_proxy(options)
     proxy_server = ProxyServer.new(options)
-    proxy_server.run
+    proxy_server.start
     running_proxy_servers[options[:port]] = proxy_server
   end
 
  def find_proxy_port
     new_proxy_port = (assigned_proxy_ports.max || ProxyManager::START_PORT) + 1
     PortProber.above(new_proxy_port)
+ end
+
+  class << self
+    def start(options = {})
+    require 'thin'
+    server = ::Thin::Server.new(
+      '0.0.0.0',
+      options.fetch(:port, 4985),
+      ProxyManager.new
+    )
+
+    server.start
+    end
   end
 end

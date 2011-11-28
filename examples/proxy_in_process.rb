@@ -1,12 +1,11 @@
-require 'rubygems'
-require 'proxy-server'
+require '../lib/proxy-server'
 require 'rest_client' # you will need to install this via gem install rest-client / bundler etc
+require 'httpclient'
 require 'json'
 
 Thread.abort_on_exception=true
 Thread.new do
-  ProxyManager.settings.port = 4983
-  ProxyManager.run!
+  ProxyManager.start :port => 4983
 end
 
 until_proxy_is_running = 3

@@ -2,7 +2,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __FILE__)
 
 Gem::Specification.new do |s|
   s.name = 'proxy-server'
-  s.version = '0.0.5'
+  s.version = '0.0.6'
   s.authors = ["Derek Ekins"]
   s.description = 'Proxy server'
   s.summary = "proxy-server-#{s.version}"
@@ -15,6 +15,9 @@ Gem::Specification.new do |s|
   s.add_dependency 'sinatra', '>= 1.2.6'
   s.add_dependency 'httpclient'
   s.add_dependency 'thin'
+  s.add_dependency 'goliath', '0.9.2'
+  s.add_dependency 'em-synchrony'
+  s.add_dependency 'em-http-request'
 
   s.add_development_dependency 'rake', '>= 0.9.2'
   s.add_development_dependency 'rspec', '>= 2.7.0'

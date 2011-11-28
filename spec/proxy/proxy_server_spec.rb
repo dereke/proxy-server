@@ -1,17 +1,29 @@
 require_relative '../spec_helper'
 require_relative '../../lib/proxy/proxy_server'
-require 'rack/test'
-require 'webmock/rspec'
 
 describe ProxyServer do
-  include Rack::Test::Methods
-
-  let(:app) { ProxyServer.new }
-
   it "can be configured with an upstream proxy" do
     proxy_uri = 'http://test-proxy:80'
     proxy = ProxyServer.new :proxy => proxy_uri
-    proxy.upstream_proxy.should == proxy_uri
+    proxy.upstream_proxy.should == URI.parse(proxy_uri)
+  end
+
+  it "should get the proxy settings" do
+    proxy_uri = 'http://test-proxy:80'
+
+    proxy = ProxyServer.new :proxy => proxy_uri
+    options = {}
+    proxy.get_proxy(options)
+    options[:proxy].should == {:type => 'http', :host => 'test-proxy', :port => 80}
+  end
+
+  it "should ignore proxy settings if none specified" do
+    proxy = ProxyServer.new
+    options = {}
+
+    proxy.get_proxy(options)
+
+    options.should_not have_key :proxy
   end
 
   it "can be configured to run on a specific port" do
@@ -25,55 +37,50 @@ describe ProxyServer do
     proxy.port.should == ProxyServer::DEFAULT_PORT
   end
 
-  it "should allow requests" do
-    stub_request(:get, "http://www.example.com")
-
-    response = get 'http://www.example.com'
-    response.status.should == 200
-  end
-
-  it "should allow requests with query strings" do
-    stub_request(:get, "http://www.example.com?para=value")
-
-    response = get "http://www.example.com?para=value"
-    response.status.should == 200
-  end
-
-  it "can substitute the response of a request with a body of text" do
+  it "should track a request" do
+    uri = "http://google.com"
     proxy = ProxyServer.new
-    expected_response = "this is not what you are looking for"
-    proxy.substitute_request '.*com', :body => expected_response
 
-    browser = Rack::Test::Session.new(Rack::MockSession.new(proxy))
-    response = browser.get 'http://www.google.com'
-    response.body.should == expected_response
+    proxy.track uri
+
+    proxy.requests.length.should == 1
+    proxy.requests.should include uri
   end
 
-  it "can substitute the response of a request with another url to call" do
+  it "should determine whether tracking is enabled for a uri" do
+    uri = "http://google.com"
     proxy = ProxyServer.new
-    substitute_url = "http://example.com"
-    expected_response_body = "substitute body"
-    stub_request(:get, substitute_url).to_return(:body => expected_response_body)
-    proxy.substitute_request '.*com', :url => substitute_url
 
-    browser = Rack::Test::Session.new(Rack::MockSession.new(proxy))
-    response = browser.get 'http://www.google.com'
-    response.body.should == expected_response_body
+    proxy.track_request('.*com')
+
+    proxy.tracking_enabled?('http://www.google.com').should be_true
+    proxy.tracking_enabled?('http://www.google.co.uk').should be_false
   end
 
-  it "tracks a url that matches the pattern" do
+  it "should determine whether there is a substitute for a uri" do
     proxy = ProxyServer.new
-    expected_response = "this is not what you are looking for"
-    proxy.track_request '.*com'
 
-    stub_request(:get, 'http://www.google.com/')
-    stub_request(:get, 'http://www.google.co.uk/')
+    proxy.substitute_request('.*com', :body => 'substitute_response')
 
-    browser = Rack::Test::Session.new(Rack::MockSession.new(proxy))
-    browser.get 'http://www.google.com/'
-    browser.get 'http://www.google.co.uk/'
+    proxy.has_substitute?('http://www.google.com').should be_true
+    proxy.has_substitute?('http://www.google.co.uk').should be_false
+  end
 
-    proxy.requests.should include('http://www.google.com/')
+  it "should substitute a request body" do
+    proxy = ProxyServer.new
+    substitute_response = 'substitute this'
+    proxy.substitute_request('.*com', :body => substitute_response)
+
+    proxy.substitute('http://www.google.com').should == [200, {}, [substitute_response]]
+  end
+
+  it "should substitute a request url" do
+    proxy = ProxyServer.new
+    substitute_url = 'http://www.google.co.uk'
+    proxy.substitute_request('.*com', :url => substitute_url)
+    proxy.should_receive(:request_uri).with(substitute_url)
+
+    proxy.substitute('http://www.google.com')
   end
 
   it "reset causes request tracking to be removed" do
@@ -86,9 +93,27 @@ describe ProxyServer do
   end
 
   it "reset causes request substituting to be removed" do
+    proxy = ProxyServer.new
+    proxy.substitute_requests['test'] = 'item'
+    proxy.reset
+    proxy.substitute_requests.length.should == 0
+  end
+
+  context "using response" do
+    it "tracks requests" do
       proxy = ProxyServer.new
-      proxy.substitute_requests['test']  = 'item'
-      proxy.reset
-      proxy.substitute_requests.length.should == 0
+      proxy.should_receive(:request_uri).with('http://www.google.com')
+
+      proxy.track_request '.*google\.com'
+      proxy.response('REQUEST_URI' => 'http://www.google.com')
     end
+
+    it "substitutes a request" do
+      proxy = ProxyServer.new
+      substitute_body = 'substitute'
+
+      proxy.substitute_request '.*google\.com', :body => substitute_body
+      proxy.response('REQUEST_URI' => 'http://www.google.com')[2].should == [substitute_body]
+    end
+  end
 end
