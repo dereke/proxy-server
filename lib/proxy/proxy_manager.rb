@@ -1,67 +1,14 @@
 require_relative './proxy_server'
 require_relative './port_prober'
-require 'sinatra/base'
-require 'json'
 
-class ProxyManager < Sinatra::Base
+class ProxyManager
   START_PORT = 5000
 
   attr_reader :running_proxy_servers, :assigned_proxy_ports
-  disable :show_exceptions
 
-  def initialize()
+  def initialize
     @running_proxy_servers = {}
     @assigned_proxy_ports = []
-    super
-  end
-
-  get '/proxies' do
-    assigned_proxy_ports.to_json
-  end
-
-  post '/proxies' do
-    new_proxy_port = find_proxy_port
-    assigned_proxy_ports << new_proxy_port
-
-    options = {
-        :port => new_proxy_port
-    }
-
-    options[:proxy] = params[:proxy] if params[:proxy]
-    start_proxy(options)
-
-    {:port => new_proxy_port}.to_json
-  end
-
-  delete '/proxies' do
-    assigned_proxy_ports.clear
-  end
-
-  delete '/proxies/:port' do |port|
-    stop_proxy port.to_i
-  end
-
-  post '/proxies/:port/reset' do |port|
-    proxy_server = get_proxy(port.to_i)
-    proxy_server.reset
-  end
-
-  post '/proxies/:port/requests' do |port|
-    proxy_server = get_proxy(port.to_i)
-    proxy_server.track_request(params[:track])
-  end
-
-  get '/proxies/:port/requests' do |port|
-    proxy_server = get_proxy(port.to_i)
-    proxy_server.requests.to_json
-  end
-
-  post '/proxies/:port/requests/substitute' do |port|
-    proxy_server = get_proxy(port.to_i)
-    options = {}
-    options[:body] = params[:body] if params[:body]
-    options[:url] = params[:url] if params[:url]
-    proxy_server.substitute_request(params[:pattern], options)
   end
 
   def get_proxy(port)
@@ -74,27 +21,39 @@ class ProxyManager < Sinatra::Base
     running_proxy_servers.delete proxy_server
   end
 
+  def delete_proxies
+    assigned_proxy_ports.clear
+  end
+
+  def proxies
+    assigned_proxy_ports
+  end
+
   def start_proxy(options)
     proxy_server = ProxyServer.new(options)
     proxy_server.start
     running_proxy_servers[options[:port]] = proxy_server
   end
 
- def find_proxy_port
+  def new_proxy
+    port = find_proxy_port
+    assigned_proxy_ports << port
+    URI.parse("http://#{proxy_host_address}:#{port}")
+  end
+
+  def proxy_host_address
+    orig, Socket.do_not_reverse_lookup = Socket.do_not_reverse_lookup, true  # turn off reverse DNS resolution temporarily
+
+    UDPSocket.open do |s|
+      s.connect '64.233.187.99', 1
+      s.addr.last
+    end
+  ensure
+    Socket.do_not_reverse_lookup = orig
+  end
+
+  def find_proxy_port
     new_proxy_port = (assigned_proxy_ports.max || ProxyManager::START_PORT) + 1
     PortProber.above(new_proxy_port)
- end
-
-  class << self
-    def start(options = {})
-    require 'thin'
-    server = ::Thin::Server.new(
-      '0.0.0.0',
-      options.fetch(:port, 4985),
-      ProxyManager.new
-    )
-
-    server.start
-    end
   end
 end

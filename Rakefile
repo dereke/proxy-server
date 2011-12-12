@@ -9,6 +9,7 @@ task :coverage do
 
   SimpleCov.start do
     add_group "lib", "lib"
+    add_filter 'spec'
   end
   SimpleCov.start
   RSpec::Core::Runner.run %w[spec]
